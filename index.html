@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>역사 카드 게임 - 이승만·박정희 정부</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Pretendard,-apple-system,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;background:#f4f1ea;color:#222;min-height:100vh;user-select:none;-webkit-user-select:none}
+header{background:#3b2f2f;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header h1{font-size:22px}
+.status{font-size:15px;display:flex;gap:16px}
+.status b{color:#ffd166}
+main{max-width:1100px;margin:0 auto;padding:18px}
+.guide{background:#fff;border:1px solid #d6cfc2;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:16px;line-height:1.5}
+.stage{display:none}.stage.active{display:block}
+/* Stage1 */
+#deck{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;min-height:90px;padding:14px;background:#e9e3d6;border:2px dashed #b9ad97;border-radius:8px;margin-bottom:20px}
+.card{background:#fffdf7;border:2px solid #8a7a5c;border-radius:8px;padding:14px 18px;font-size:18px;font-weight:700;cursor:grab;touch-action:none;transition:transform .35s,background .2s,border-color .2s;min-width:130px;text-align:center}
+.card.dragging{cursor:grabbing;opacity:.95;z-index:1000;position:fixed;pointer-events:none;transition:none;transform:scale(1.06)}
+.card.wrong{background:#ffd6d6;border-color:#d62828}
+.card.bounce{animation:bounce .6s}
+@keyframes bounce{0%{transform:translateY(0)}30%{transform:translateY(-40px)}55%{transform:translateY(0)}75%{transform:translateY(-14px)}100%{transform:translateY(0)}}
+.baskets{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.basket{border:3px solid #6b5b3e;border-radius:8px 8px 40px 40px;background:#fff;min-height:300px;padding:12px;transition:background .2s}
+.basket h2{text-align:center;font-size:24px;padding:8px;margin-bottom:10px;border-radius:6px;color:#fff}
+#b-rhee h2{background:#1d3557}#b-park h2{background:#7a2e2e}
+.basket.over{background:#fff6d9}
+.basket.shake{animation:shake .45s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+.basket .in{display:flex;flex-direction:column;gap:8px}
+.placed{background:#e7f5e9;border:2px solid #2d8a4e;border-radius:6px;padding:8px 12px;font-size:17px;font-weight:700;display:flex;justify-content:space-between}
+.placed span{color:#2d8a4e;font-weight:600}
+/* Stage2 */
+#grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.tcard{background:#fffdf7;border:2px solid #8a7a5c;border-radius:8px;padding:18px 10px;font-size:18px;font-weight:700;text-align:center;cursor:pointer;min-height:96px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;transition:background .2s,border-color .2s}
+.tcard:hover:not(.done){border-color:#2563eb;background:#f1f5ff}
+.tcard.done{background:#2563eb;border-color:#1e40af;color:#fff;cursor:default}
+.tcard.done .no{display:inline-block}
+.tcard .no{display:none;background:#fff;color:#2563eb;border-radius:50%;width:28px;height:28px;line-height:28px;font-size:15px}
+.tcard .yr{font-size:14px;font-weight:500;display:none}
+.tcard.done .yr{display:block}
+.tcard.err{background:#ffd6d6;border-color:#d62828;animation:shake .45s}
+#msg{min-height:30px;font-size:17px;font-weight:700;text-align:center;margin-bottom:12px}
+#msg.bad{color:#d62828}#msg.good{color:#2d8a4e}
+#timeline{background:#fff;border:1px solid #d6cfc2;border-radius:8px;padding:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:52px}
+#timeline .t{background:#e8efff;border:1px solid #2563eb;border-radius:6px;padding:5px 9px;font-size:14px}
+#timeline .arr{color:#888}
+button{font-family:inherit;font-size:17px;font-weight:700;padding:10px 20px;border-radius:8px;border:none;cursor:pointer;background:#2563eb;color:#fff}
+button.sub{background:#6b7280}
+.btns{display:flex;gap:10px;justify-content:center;margin-top:14px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:2000}
+.modal.show{display:flex}
+.modal .box{background:#fff;border-radius:8px;padding:28px 34px;text-align:center;max-width:440px}
+.modal h2{font-size:28px;margin-bottom:12px}
+.modal p{font-size:17px;margin-bottom:18px;line-height:1.6}
+@media(max-width:760px){#grid{grid-template-columns:repeat(2,1fr)}.baskets{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">1단계 · 대통령 바구니 게임</h1>
+  <div class="status"><div>남은 카드 <b id="left">10</b></div><div>오답 <b id="miss">0</b></div></div>
+</header>
+<main>
+<section class="stage active" id="stage1">
+  <div class="guide">카드를 끌어서 알맞은 대통령 바구니에 넣으세요. 틀린 바구니에 넣으면 카드가 튕겨 나옵니다.</div>
+  <div id="deck"></div>
+  <div class="baskets">
+    <div class="basket" id="b-rhee" data-p="rhee"><h2>이승만 바구니</h2><div class="in"></div></div>
+    <div class="basket" id="b-park" data-p="park"><h2>박정희 바구니</h2><div class="in"></div></div>
+  </div>
+</section>
+<section class="stage" id="stage2">
+  <div class="guide">일어난 순서대로 카드를 클릭하세요. 맞으면 카드 색이 바뀌고, 한 번 맞힌 카드는 다시 누를 수 없습니다.</div>
+  <div id="msg"></div>
+  <div id="grid"></div>
+  <div id="timeline"><span style="color:#888">맞힌 순서가 여기에 쌓입니다.</span></div>
+  <div class="btns"><button class="sub" onclick="startStage2()">2단계 다시 하기</button></div>
+</section>
+</main>
+<div class="modal" id="m1"><div class="box"><h2>1단계 통과</h2><p id="m1t"></p><button onclick="goStage2()">2단계로 가기</button></div></div>
+<div class="modal" id="m2"><div class="box"><h2>모든 단계 완료</h2><p id="m2t"></p><div class="btns"><button onclick="restartAll()">처음부터 다시</button><button class="sub" onclick="closeM2();startStage2()">2단계만 다시</button></div></div></div>
+<script>
+// 1단계 카드: p = 정답 바구니
+const STAGE1 = [
+  {t:"발췌개헌", y:"1952", p:"rhee"},
+  {t:"사사오입개헌", y:"1954", p:"rhee"},
+  {t:"진보당 사건", y:"1958", p:"rhee"},
+  {t:"국가 보안법 제정", y:"1948", p:"rhee"},
+  {t:"농지 개혁법 발표", y:"1949", p:"rhee"},
+  {t:"10월 유신", y:"1972", p:"park"},
+  {t:"한일협정", y:"1965", p:"park"},
+  {t:"6.3시위", y:"1964", p:"park"},
+  {t:"7.4남북공동성명", y:"1972", p:"park"},
+  {t:"향토예비군 창설", y:"1968", p:"park"}
+];
+// 2단계 카드: 이 목록의 순서가 곧 정답 순서
+const STAGE2 = [
+  {t:"5.16 군사정변", y:"1961. 5."},
+  {t:"박정희 5대 대통령 당선", y:"1963. 10."},
+  {t:"한일협정", y:"1965. 6."},
+  {t:"3선 개헌 통과", y:"1969. 9."},
+  {t:"7.4남북공동성명", y:"1972. 7. 4."},
+  {t:"유신헌법 제정", y:"1972. 11.~12."},
+  {t:"3.1민주 구국선언", y:"1976. 3."},
+  {t:"부마민주항쟁", y:"1979. 10. 16."},
+  {t:"10.26사태", y:"1979. 10. 26."},
+  {t:"12.12 군사반란", y:"1979. 12. 12."},
+  {t:"서울의 봄", y:"1980. 봄"},
+  {t:"5.18 민주화 운동", y:"1980. 5. 18."}
+];
+let miss1=0, miss2=0, left1=0, step=0;
+const $=id=>document.getElementById(id);
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+
+/* ---------- 1단계 ---------- */
+function startStage1(){
+  miss1=0;left1=STAGE1.length;
+  $("miss").textContent=0;$("left").textContent=left1;
+  $("title").textContent="1단계 · 대통령 바구니 게임";
+  document.querySelectorAll(".basket .in").forEach(e=>e.innerHTML="");
+  const deck=$("deck");deck.innerHTML="";
+  shuffle(STAGE1).forEach(c=>{
+    const el=document.createElement("div");
+    el.className="card";el.textContent=c.t;el.dataset.p=c.p;el.dataset.y=c.y;
+    el.addEventListener("pointerdown",e=>startDrag(e,el));
+    deck.appendChild(el);
+  });
+}
+let drag=null;
+function startDrag(e,el){
+  e.preventDefault();
+  const r=el.getBoundingClientRect();
+  const ph=document.createElement("div");
+  ph.style.width=r.width+"px";ph.style.height=r.height+"px";
+  el.parentNode.insertBefore(ph,el);
+  el.classList.remove("wrong","bounce");
+  el.classList.add("dragging");
+  el.style.width=r.width+"px";
+  drag={el,ph,dx:e.clientX-r.left,dy:e.clientY-r.top};
+  moveDrag(e);
+  window.addEventListener("pointermove",moveDrag);
+  window.addEventListener("pointerup",endDrag);
+}
+function basketAt(x,y){
+  for(const b of document.querySelectorAll(".basket")){
+    const r=b.getBoundingClientRect();
+    if(x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom)return b;
+  }
+  return null;
+}
+function moveDrag(e){
+  if(!drag)return;
+  drag.el.style.left=(e.clientX-drag.dx)+"px";
+  drag.el.style.top=(e.clientY-drag.dy)+"px";
+  document.querySelectorAll(".basket").forEach(b=>b.classList.remove("over"));
+  const b=basketAt(e.clientX,e.clientY);
+  if(b)b.classList.add("over");
+}
+function endDrag(e){
+  window.removeEventListener("pointermove",moveDrag);
+  window.removeEventListener("pointerup",endDrag);
+  const {el,ph}=drag;drag=null;
+  document.querySelectorAll(".basket").forEach(b=>b.classList.remove("over"));
+  const b=basketAt(e.clientX,e.clientY);
+  el.classList.remove("dragging");
+  el.style.left=el.style.top=el.style.width="";
+  if(b&&b.dataset.p===el.dataset.p){
+    ph.remove();el.remove();
+    const p=document.createElement("div");
+    p.className="placed";p.innerHTML=el.textContent+"<span>"+el.dataset.y+"</span>";
+    b.querySelector(".in").appendChild(p);
+    left1--;$("left").textContent=left1;
+    if(left1===0)setTimeout(()=>{$("m1t").textContent="오답 "+miss1+"회로 1단계를 통과했습니다.";$("m1").classList.add("show");},400);
+  }else{
+    ph.parentNode.insertBefore(el,ph);ph.remove();
+    if(b){
+      miss1++;$("miss").textContent=miss1;
+      b.classList.remove("shake");void b.offsetWidth;b.classList.add("shake");
+      el.classList.add("wrong","bounce");
+      setTimeout(()=>el.classList.remove("wrong","bounce"),900);
+    }
+  }
+}
+function goStage2(){
+  $("m1").classList.remove("show");
+  $("stage1").classList.remove("active");$("stage2").classList.add("active");
+  startStage2();
+}
+
+/* ---------- 2단계 ---------- */
+function startStage2(){
+  step=0;miss2=0;
+  $("title").textContent="2단계 · 시대순 나열하기";
+  $("miss").textContent=0;$("left").textContent=STAGE2.length;
+  $("msg").textContent="1번째로 일어난 사건을 찾아보세요.";$("msg").className="";
+  $("timeline").innerHTML='<span style="color:#888">맞힌 순서가 여기에 쌓입니다.</span>';
+  const g=$("grid");g.innerHTML="";
+  shuffle(STAGE2.map((c,i)=>({...c,i}))).forEach(c=>{
+    const el=document.createElement("div");
+    el.className="tcard";
+    el.innerHTML='<span class="no"></span><div>'+c.t+'</div><div class="yr">'+c.y+'</div>';
+    el.addEventListener("click",()=>clickCard(el,c));
+    g.appendChild(el);
+  });
+}
+function clickCard(el,c){
+  if(el.classList.contains("done"))return;
+  if(c.i===step){
+    step++;
+    el.classList.add("done");el.querySelector(".no").textContent=step;
+    const tl=$("timeline");
+    if(step===1)tl.innerHTML="";else tl.insertAdjacentHTML("beforeend",'<span class="arr">→</span>');
+    tl.insertAdjacentHTML("beforeend",'<span class="t">'+c.t+' ('+c.y+')</span>');
+    $("left").textContent=STAGE2.length-step;
+    if(step===STAGE2.length){
+      $("msg").textContent="정답! 모든 사건을 시대순으로 나열했습니다.";$("msg").className="good";
+      setTimeout(()=>{$("m2t").innerHTML="1단계 오답: "+miss1+"회<br>2단계 오답: "+miss2+"회";$("m2").classList.add("show");},500);
+    }else{
+      $("msg").textContent="정답! 이제 "+(step+1)+"번째로 일어난 사건을 찾아보세요.";$("msg").className="good";
+    }
+  }else{
+    miss2++;$("miss").textContent=miss2;
+    el.classList.remove("err");void el.offsetWidth;el.classList.add("err");
+    setTimeout(()=>el.classList.remove("err"),600);
+    $("msg").textContent="순서가 아닙니다. "+(step+1)+"번째로 일어난 사건을 찾아보세요.";$("msg").className="bad";
+  }
+}
+function closeM2(){$("m2").classList.remove("show");}
+function restartAll(){
+  closeM2();
+  $("stage2").classList.remove("active");$("stage1").classList.add("active");
+  startStage1();
+}
+startStage1();
+</script>
+</body>
+</html>
